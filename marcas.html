@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Retamar 〞 LOS BROS (barreras exactas + marcas)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+  :root{ --bg:#0b1220; --card:#121a2b; --text:#f3f6ff; --muted:#9fb0d0; --accent:#4cc9f0; }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px}
+  .panel{background:var(--card); border:1px solid #1d2942; border-radius:14px; padding:12px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h1{font-size:20px;margin:8px 0}
+  #map{height:72vh;border-radius:14px;border:1px solid #1d2942}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+  button{background:#18233a;color:#f3f6ff;border:1px solid #223155;padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:600}
+  button:hover{border-color:#4cc9f0}
+  button.big{background:#1e40af;color:#fff;font-size:16px;padding:12px 20px;margin:10px 0}
+  .legend{font-size:12px;color:#9fb0d0;margin-top:8px;line-height:1.4}
+  .pill{display:inline-block;background:#223155;color:#cfe6ff;padding:2px 8px;border-radius:999px;margin-left:6px;font-size:11px}
+  .hud {position:fixed; right:10px; top:10px; z-index:1000; background:#0b1220cc; border:1px solid #223155; border-radius:10px; padding:10px 12px; min-width:210px}
+  .hud h3{margin:0 0 6px 0; font-size:14px}
+  .hud .row{font-size:13px; display:flex; justify-content:space-between; margin:2px 0}
+  .hud .small{font-size:11px; color:#9fb0d0}
+  .hud .btns{display:flex; gap:6px; margin-top:8px}
+  .hud button{padding:6px 10px; border-radius:8px}
+  .status{background:#2d1b69;color:#e9d5ff;padding:8px 12px;border-radius:8px;margin:8px 0;font-size:13px}
+  .error{background:#7f1d1d;color:#fecaca}
+  .success{background:#166534;color:#bbf7d0}
+  .warning{background:#92400e;color:#fed7aa}
+  .permission-panel{background:#1e40af;color:#fff;padding:20px;border-radius:14px;margin:10px 0;text-align:center}
+  .permission-panel h2{margin:0 0 10px 0}
+  .permission-panel p{margin:10px 0}
+  #mapContainer{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>Arrecife "W/E" Torre Perdigal 每 Amoladera LOS BROS <span class="pill">barreras exactas + marcas</span></h1>
+    
+    <!-- Panel de permisos -->
+    <div id="permission-panel" class="permission-panel">
+      <h2>?? Activar GPS para Navegaci車n</h2>
+      <p>Esta app necesita acceso a tu ubicaci車n para navegar a las marcas de pesca.</p>
+      <p><strong>Paso 1:</strong> Pulsa el bot車n de abajo</p>
+      <p><strong>Paso 2:</strong> Chrome te pedir芍 permisos ↙ Dale "Permitir"</p>
+      <button id="btn-request-permission" class="big">?? SOLICITAR PERMISOS GPS</button>
+      <div id="permission-status" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- Contenido principal (oculto hasta tener permisos) -->
+    <div id="mapContainer">
+      <div class="controls">
+        <button id="btn-kayak">Kayak</button>
+        <button id="btn-barco">Barco</button>
+        <button id="btn-ambas">Ambas</button>
+        <button id="btn-over">Mostrar/ocultar overlays</button>
+        <button id="btn-test-gps">?? Test GPS</button>
+      </div>
+      <div id="status" class="status" style="display:none"></div>
+      <div id="map"></div>
+      <div class="legend">
+        <b>Salida:</b> 36.83039052497308, -2.3125454988232668 (Camino del Encaje ℅ Paseo Mar赤timo).<br/>
+        Naranja = pol赤gono A每B每C每D每E (oficial). Amarillo = barreras "W/E" con tus v谷rtices. Profundidad ＞ por carta; valida con ecosonda.<br/>
+        <b>? GPS activado:</b> Ya puedes navegar a las marcas de pesca.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hud" style="display:none">
+  <h3>Navegaci車n</h3>
+  <div class="row"><span>Destino:</span><span id="hud-dst">〞</span></div>
+  <div class="row"><span>Restante:</span><span id="hud-rem">〞</span></div>
+  <div class="row"><span>Rumbo:</span><span id="hud-brg">〞</span></div>
+  <div class="row"><span>Velocidad:</span><span id="hud-spd">〞</span></div>
+  <div class="row"><span>Precisi車n:</span><span id="hud-acc">〞</span></div>
+  <div class="small">*Aviso al llegar (&lt; 50 m). Requiere GPS del m車vil.</div>
+  <div class="btns">
+    <button id="btn-center">Centrar</button>
+    <button id="btn-stop">Detener</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+// === CONFIGURACI車N Y DATOS ===
+const COAST_REF = { name:"Salida Retamar (Encaje ℅ Paseo Mar赤timo)", lat:36.83039052497308, lon:-2.3125454988232668 };
+const ARRIVAL_RADIUS_M = 50, TWO_NM = 2*1852;
+
+const A = {lat:36.837000, lon:-2.348333};
+const B = {lat:36.828333, lon:-2.312500};
+const C = {lat:36.813500, lon:-2.289167};
+const D = {lat:36.804167, lon:-2.308333};
+const E = {lat:36.819167, lon:-2.348333};
+
+const PALO_IZQ = [
+  {lat:36.836948, lon:-2.348295}, {lat:36.832263, lon:-2.348274},
+  {lat:36.827691, lon:-2.348231}, {lat:36.823749, lon:-2.348231},
+  {lat:36.819300, lon:-2.348269}
+];
+const PALO_CEN = [
+  {lat:36.831066, lon:-2.324209}, {lat:36.826669, lon:-2.324467},
+  {lat:36.822615, lon:-2.324724}, {lat:36.817943, lon:-2.325153},
+  {lat:36.813614, lon:-2.325497}
+];
+const PALO_DCH = [
+  {lat:36.813580, lon:-2.289662}, {lat:36.810573, lon:-2.295628},
+  {lat:36.806862, lon:-2.303245}, {lat:36.804491, lon:-2.308266}
+];
+const TRAMO_INF = [
+  {lat:36.819218, lon:-2.348247}, {lat:36.816500, lon:-2.338028},
+  {lat:36.813614, lon:-2.327042}, {lat:36.809491, lon:-2.317944},
+  {lat:36.804526, lon:-2.308760}
+];
+
+const KAYAK = [
+  { name:"K﹞Centro﹞1", type:"kayak", lat:36.831066, lon:-2.324209, depth_txt:"＞12每15 m (carta)" },
+  { name:"K﹞Centro﹞2", type:"kayak", lat:36.826669, lon:-2.324467, depth_txt:"＞14每17 m (carta)" },
+  { name:"K﹞Centro﹞3", type:"kayak", lat:36.822615, lon:-2.324724, depth_txt:"＞16每19 m (carta)" },
+  { name:"K﹞Centro﹞4", type:"kayak", lat:36.817943, lon:-2.325153, depth_txt:"＞18每20 m (carta)" }
+];
+
+const BARCO = [
+  { name:"B﹞E inicio", type:"barco", lat:36.819218, lon:-2.348247, depth_txt:"＞27每30 m (carta)" },
+  { name:"B﹞Inf﹞1", type:"barco", lat:36.816500, lon:-2.338028, depth_txt:"＞30每32 m (carta)" },
+  { name:"B﹞Inf﹞2", type:"barco", lat:36.813614, lon:-2.327042, depth_txt:"＞32每34 m (carta)" },
+  { name:"B﹞Inf﹞3", type:"barco", lat:36.809491, lon:-2.317944, depth_txt:"＞33每35 m (carta)" },
+  { name:"B﹞C v谷rtice", type:"barco", lat:36.813500, lon:-2.289167, depth_txt:"＞22每25 m (carta)" },
+  { name:"B﹞Izq﹞A1", type:"barco", lat:36.836000, lon:-2.348290, depth_txt:"＞14每17 m (carta)" },
+  { name:"B﹞Izq﹞A2", type:"barco", lat:36.832263, lon:-2.348274, depth_txt:"＞17每20 m (carta)" },
+  { name:"B﹞Izq﹞A3", type:"barco", lat:36.827691, lon:-2.348231, depth_txt:"＞20每22 m (carta)" },
+  { name:"B﹞Izq﹞A4", type:"barco", lat:36.823749, lon:-2.348231, depth_txt:"＞22每24 m (carta)" },
+  { name:"B﹞Izq﹞Esq", type:"barco", lat:36.819300, lon:-2.348269, depth_txt:"＞27每30 m (carta)" },
+  { name:"B﹞Der﹞Esq", type:"barco", lat:36.804526, lon:-2.308760, depth_txt:"＞33每35 m (carta)" },
+  { name:"B﹞Der﹞1", type:"barco", lat:36.806862, lon:-2.303245, depth_txt:"＞31每33 m (carta)" },
+  { name:"B﹞Der﹞2", type:"barco", lat:36.810573, lon:-2.295628, depth_txt:"＞27每30 m (carta)" },
+  { name:"B﹞Der﹞C", type:"barco", lat:36.813580, lon:-2.289662, depth_txt:"＞22每25 m (carta)" }
+];
+
+// === FUNCIONES AUXILIARES ===
+const fmt = x => new Intl.NumberFormat("es-ES",{maximumFractionDigits:3}).format(x);
+function dist(a,b){ return L.latLng(a.lat,a.lon).distanceTo(L.latLng(b.lat,b.lon)); }
+function distLabel(m){ return m<1000? `${Math.round(m)} m` : `${fmt(m/1000)} km`; }
+function bearingDeg(a,b){
+  const 耳1=a.lat*Math.PI/180, 耳2=b.lat*Math.PI/180, 忖竹=(b.lon-a.lon)*Math.PI/180;
+  const y=Math.sin(忖竹)*Math.cos(耳2), x=Math.cos(耳1)*Math.sin(耳2)-Math.sin(耳1)*Math.cos(耳2)*Math.cos(忖竹);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+
+const statusEl = document.getElementById('status');
+function showStatus(msg, type = 'status') {
+  statusEl.textContent = msg;
+  statusEl.className = `status ${type}`;
+  statusEl.style.display = 'block';
+  if (type !== 'error') {
+    setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+  }
+}
+
+// === FUNCI車N PARA FORZAR PERMISOS ===
+function requestLocationPermission() {
+  const statusDiv = document.getElementById('permission-status');
+  const button = document.getElementById('btn-request-permission');
+  
+  button.textContent = '? Solicitando permisos...';
+  button.disabled = true;
+  
+  if (!('geolocation' in navigator)) {
+    statusDiv.innerHTML = '<div style="color:#ff6b6b;">? Tu navegador no soporta GPS</div>';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      statusDiv.innerHTML = '<div style="color:#51cf66;">? ?Permisos concedidos! Cargando mapa...</div>';
+      setTimeout(() => {
+        document.getElementById('permission-panel').style.display = 'none';
+        document.getElementById('mapContainer').style.display = 'block';
+        initializeApp();
+      }, 1000);
+    },
+    (error) => {
+      button.textContent = '?? REINTENTAR PERMISOS GPS';
+      button.disabled = false;
+      
+      let msg = '';
+      switch(error.code) {
+        case 1:
+          msg = `
+            <div style="color:#ff6b6b;">? <strong>Permisos denegados</strong></div>
+            <div style="font-size:12px;margin-top:8px;">
+              <strong>Para activar GPS:</strong><br/>
+              1. Toca el <strong>?? candado</strong> en la barra de URL<br/>
+              2. Cambia "Ubicaci車n" a <strong>"Permitir"</strong><br/>
+              3. Recarga la p芍gina<br/><br/>
+              <strong>O ve a:</strong><br/>
+              Chrome ↙ Men迆 ↙ Configuraci車n ↙ Configuraci車n del sitio ↙ Ubicaci車n ↙ Permitir
+            </div>
+          `;
+          break;
+        case 2:
+          msg = '<div style="color:#ff6b6b;">? GPS no disponible. Activa la ubicaci車n en Android.</div>';
+          break;
+        case 3:
+          msg = '<div style="color:#ffa726;">? Tiempo agotado. Reint谷ntalo.</div>';
+          break;
+        default:
+          msg = '<div style="color:#ff6b6b;">? Error desconocido. Reint谷ntalo.</div>';
+      }
+      statusDiv.innerHTML = msg;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+// === VERIFICAR PERMISOS AL CARGAR ===
+function checkInitialPermissions() {
+  if ('permissions' in navigator) {
+    navigator.permissions.query({name: 'geolocation'}).then((result) => {
+      if (result.state === 'granted') {
+        document.getElementById('permission-panel').style.display = 'none';
+        document.getElementById('mapContainer').style.display = 'block';
+        initializeApp();
+      }
+    }).catch(() => {});
+  }
+}
+
+// === FUNCI車N PRINCIPAL ===
+function initializeApp() {
+  if (typeof L === 'undefined') {
+    showStatus('? Error cargando Leaflet. Recarga la p芍gina.', 'error');
+    return;
+  }
+
+  const map = L.map('map',{ center:[(A.lat+B.lat+C.lat+D.lat+E.lat)/5, (A.lon+B.lon+C.lon+D.lon+E.lon)/5], zoom:13 });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'? OpenStreetMap'}).addTo(map);
+
+  const coastMarker = L.circleMarker([COAST_REF.lat,COAST_REF.lon],{radius:7,color:'#ffd166',fillColor:'#ffd166',fillOpacity:.9})
+    .bindPopup(`<b>${COAST_REF.name}</b><br>${COAST_REF.lat.toFixed(6)}, ${COAST_REF.lon.toFixed(6)}`).addTo(map);
+  const circle2nm = L.circle([COAST_REF.lat,COAST_REF.lon], {radius: TWO_NM, color:'#69c', fill:false}).addTo(map);
+
+  const overlays = L.layerGroup().addTo(map);
+  const kayakLayer = L.layerGroup().addTo(map);
+  const barcoLayer = L.layerGroup().addTo(map);
+  const routeLayer = L.layerGroup().addTo(map);
+  const youLayer = L.layerGroup().addTo(map);
+
+  const styleBar = {color:'#f0e130', weight:6, opacity:.95};
+  L.polyline([[A.lat,A.lon],[B.lat,B.lon],[C.lat,C.lon],[D.lat,D.lon],[E.lat,E.lon],[A.lat,A.lon]], {color:'#ff7b00', weight:3}).addTo(overlays);
+  L.polyline(PALO_IZQ.map(p=>[p.lat,p.lon]), styleBar).addTo(overlays);
+  L.polyline(PALO_CEN.map(p=>[p.lat,p.lon]), styleBar).addTo(overlays);
+  L.polyline(PALO_DCH.map(p=>[p.lat,p.lon]), styleBar).addTo(overlays);
+  L.polyline(TRAMO_INF.map(p=>[p.lat,p.lon]), styleBar).addTo(overlays);
+
+  const kayakIcon = L.divIcon({ html:`<div style="background:#56d364;border:2px solid #1b6c3f;color:#082;padding:3px 6px;border-radius:6px;font-size:12px">?? Kayak</div>` });
+  const barcoIcon = L.divIcon({ html:`<div style="background:#4cc9f0;border:2px solid #1b6c3f;color:#013b49;padding:3px 6px;border-radius:6px;font-size:12px">?? Barco</div>` });
+
+  let navWatchId = null, youMarker = null, currentPosition = null;
+  const hud = document.getElementById('hud');
+  const hudDst = document.getElementById('hud-dst');
+  const hudRem = document.getElementById('hud-rem');
+  const hudBrg = document.getElementById('hud-brg');
+  const hudSpd = document.getElementById('hud-spd');
+  const hudAcc = document.getElementById('hud-acc');
+
+  function testGPS() {
+    showStatus('?? Verificando GPS...', 'warning');
+    if (!('geolocation' in navigator)) {
+      showStatus('? GPS no disponible en este navegador', 'error');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+        showStatus(`? GPS OK: ${lat.toFixed(6)}, ${lon.toFixed(6)} (㊣${Math.round(accuracy)}m)`, 'success');
+        youLayer.clearLayers();
+        const marker = L.circleMarker([lat, lon], {radius: 8, color: '#10b981', fillColor: '#10b981', fillOpacity: 0.8})
+          .bindPopup(`Tu posici車n actual<br/>Precisi車n: ㊣${Math.round(accuracy)}m`).addTo(youLayer);
+        map.setView([lat, lon], 15);
+        marker.openPopup();
+      },
+      (error) => {
+        let msg = '? Error GPS: ';
+        switch(error.code) {
+          case 1: msg += 'Permisos denegados'; break;
+          case 2: msg += 'Posici車n no disponible'; break;
+          case 3: msg += 'Tiempo de espera agotado'; break;
+          default: msg += 'Error desconocido';
+        }
+        showStatus(msg + '. Revisa permisos de ubicaci車n.', 'error');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  function startNavigation(dest) {
+    stopNavigation();
+    if (!('geolocation' in navigator)) {
+      showStatus('? GPS no disponible', 'error');
+      return;
+    }
+    hud.style.display = 'block';
+    hudDst.textContent = dest.name;
+    hudRem.textContent = 'Conectando GPS...';
+    showStatus('?? Iniciando navegaci車n GPS...', 'warning');
+
+    navWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lon, speed, accuracy } = pos.coords;
+        currentPosition = { lat, lon };
+        youLayer.clearLayers();
+        youMarker = L.circleMarker([lat, lon], {radius: 6, color: '#ffb703', fillColor: '#ffb703', fillOpacity: 1})
+          .bindPopup(`Tu posici車n<br/>Precisi車n: ㊣${Math.round(accuracy)}m`).addTo(youLayer);
+        
+        const d = dist({ lat, lon }, { lat: dest.lat, lon: dest.lon });
+        const brg = bearingDeg({ lat, lon }, { lat: dest.lat, lon: dest.lon });
+        
+        hudRem.textContent = distLabel(d);
+        hudBrg.textContent = `${Math.round(brg)}～`;
+        hudAcc.textContent = `㊣${Math.round(accuracy)}m`;
+        hudSpd.textContent = (typeof speed === 'number' && speed !== null) ? `${(speed * 1.94384).toFixed(1)} kn` : '〞';
+        
+        if (d <= ARRIVAL_RADIUS_M) {
+          showStatus('?? ?Llegaste a la marca!', 'success');
+          if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+        }
+      },
+      (error) => {
+        switch(error.code) {
+          case 1: showStatus('?? Necesitas dar permisos de ubicaci車n para navegar', 'error'); break;
+          case 2: hudRem.textContent = 'Sin se?al GPS'; break;
+          case 3: hudRem.textContent = 'GPS sin respuesta'; break;
+          default: hudRem.textContent = 'Error GPS';
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
+    );
+  }
+
+  function stopNavigation() {
+    if (navWatchId !== null) {
+      navigator.geolocation.clearWatch(navWatchId);
+      navWatchId = null;
+    }
+    hud.style.display = 'none';
+    youLayer.clearLayers();
+    routeLayer.clearLayers();
+    currentPosition = null;
+    youMarker = null;
+    showStatus('Navegaci車n detenida', 'status');
+  }
+
+  function addPoint(p, layer, icon) {
+    const d0 = dist(COAST_REF, p);
+    const b0 = bearingDeg(COAST_REF, p);
+    const html = `
+      <b>${p.name}</b> 〞 <small>${p.type.toUpperCase()}</small><br><br>
+      <b>Coordenadas:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
+      <b>Desde salida:</b> ${distLabel(d0)} ﹞ <b>Rumbo</b> ${Math.round(b0)}～<br>
+      ${p.depth_txt ? `<b>Profundidad ＞ (carta):</b> ${p.depth_txt}<br>` : ''}
+      <br><button id="go-${p.name.replace(/[^a-z0-9]/gi, '_')}" style="cursor:pointer;padding:6px 10px;border:1px solid #223155;border-radius:8px;background:#18233a;color:#eaf3ff">?? Navegar aqu赤</button>
+    `;
+    const m = L.marker([p.lat, p.lon], { icon }).bindPopup(html);
+    m.on('popupopen', () => {
+      const btn = document.getElementById(`go-${p.name.replace(/[^a-z0-9]/gi, '_')}`);
+      if (!btn) return;
+      btn.onclick = () => {
+        m.closePopup();
+        routeLayer.clearLayers();
+        const line = L.polyline([[COAST_REF.lat, COAST_REF.lon], [p.lat, p.lon]], {color: '#4cc9f0', weight: 3, dashArray: '5,6'}).addTo(routeLayer);
+        map.fitBounds(line.getBounds().pad(0.2));
+        startNavigation(p);
+      };
+    });
+    layer.addLayer(m);
+  }
+
+  KAYAK.forEach(p => addPoint(p, kayakLayer, kayakIcon));
+  BARCO.forEach(p => addPoint(p, barcoLayer, barcoIcon));
+
+  function fitVisible(showK, showB) {
+    const layers = [L.layerGroup([overlays])];
+    if (showK) layers.push(kayakLayer);
+    if (showB) layers.push(barcoLayer);
+    try { map.fitBounds(L.featureGroup(layers).getBounds().pad(0.2)); } catch(e) {}
+  }
+
+  document.getElementById('btn-kayak').onclick = () => { stopNavigation(); map.removeLayer(barcoLayer); map.addLayer(kayakLayer); fitVisible(true,false); };
+  document.getElementById('btn-barco').onclick = () => { stopNavigation(); map.removeLayer(kayakLayer); map.addLayer(barcoLayer); fitVisible(false,true); };
+  document.getElementById('btn-ambas').onclick = () => { stopNavigation(); map.addLayer(kayakLayer); map.addLayer(barcoLayer); fitVisible(true,true); };
+  document.getElementById('btn-test-gps').onclick = testGPS;
+  document.getElementById('btn-center').onclick = () => { if (currentPosition) map.setView([currentPosition.lat, currentPosition.lon], 15); else if (youMarker) map.panTo(youMarker.getLatLng()); };
+  document.getElementById('btn-stop').onclick = stopNavigation;
+
+  let overVisible = true;
+  document.getElementById('btn-over').onclick = () => {
+    overVisible = !overVisible;
+    if (overVisible) overlays.addTo(map); else map.removeLayer(overlays);
+  };
+
+  document.getElementById('btn-ambas').click();
+}
+
+// === INICIALIZACI車N ===
+if (typeof L !== 'undefined') {
+  checkInitialPermissions();
+} else {
+  let attempts = 0;
+  const checkLeaflet = setInterval(() => {
+    attempts++;
+    if (typeof L !== 'undefined') {
+      clearInterval(checkLeaflet);
+      checkInitialPermissions();
+    } else if (attempts > 20) {
+      clearInterval(checkLeaflet);
+      document.getElementById('permission-status').innerHTML = '<div style="color:#ff6b6b;">? Error cargando el mapa. Comprueba tu conexi車n.</div>';
+    }
+  }, 100);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btn-request-permission').onclick = requestLocationPermission;
+});
+</script>
+</body>
+</html>
