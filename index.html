@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Retamar ¡ª LOS BROS (barreras exactas + marcas)</title>
+<title>Retamar â€” LOS BROS (barreras exactas + marcas)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <style>
@@ -37,14 +37,14 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h1>Arrecife "W/E" Torre Perdigal ¨C Amoladera LOS BROS <span class="pill">barreras exactas + marcas</span></h1>
+    <h1>Arrecife "W/E" Torre Perdigal â€“ Amoladera LOS BROS <span class="pill">barreras exactas + marcas</span></h1>
     
     <!-- Panel de permisos -->
     <div id="permission-panel" class="permission-panel">
-      <h2>?? Activar GPS para Navegaci¨®n</h2>
-      <p>Esta app necesita acceso a tu ubicaci¨®n para navegar a las marcas de pesca.</p>
-      <p><strong>Paso 1:</strong> Pulsa el bot¨®n de abajo</p>
-      <p><strong>Paso 2:</strong> Chrome te pedir¨¢ permisos ¡ú Dale "Permitir"</p>
+      <h2>?? Activar GPS para NavegaciÃ³n</h2>
+      <p>Esta app necesita acceso a tu ubicaciÃ³n para navegar a las marcas de pesca.</p>
+      <p><strong>Paso 1:</strong> Pulsa el botÃ³n de abajo</p>
+      <p><strong>Paso 2:</strong> Chrome te pedirÃ¡ permisos â†’ Dale "Permitir"</p>
       <button id="btn-request-permission" class="big">?? SOLICITAR PERMISOS GPS</button>
       <div id="permission-status" style="margin-top:10px;"></div>
     </div>
@@ -61,8 +61,8 @@
       <div id="status" class="status" style="display:none"></div>
       <div id="map"></div>
       <div class="legend">
-        <b>Salida:</b> 36.83039052497308, -2.3125454988232668 (Camino del Encaje ¡Á Paseo Mar¨ªtimo).<br/>
-        Naranja = pol¨ªgono A¨CB¨CC¨CD¨CE (oficial). Amarillo = barreras "W/E" con tus v¨¦rtices. Profundidad ¡Ö por carta; valida con ecosonda.<br/>
+        <b>Salida:</b> 36.83039052497308, -2.3125454988232668 (Camino del Encaje Ã— Paseo MarÃ­timo).<br/>
+        Naranja = polÃ­gono Aâ€“Bâ€“Câ€“Dâ€“E (oficial). Amarillo = barreras "W/E" con tus vÃ©rtices. Profundidad â‰ˆ por carta; valida con ecosonda.<br/>
         <b>? GPS activado:</b> Ya puedes navegar a las marcas de pesca.
       </div>
     </div>
@@ -71,13 +71,13 @@
 
 <!-- HUD -->
 <div id="hud" class="hud" style="display:none">
-  <h3>Navegaci¨®n</h3>
-  <div class="row"><span>Destino:</span><span id="hud-dst">¡ª</span></div>
-  <div class="row"><span>Restante:</span><span id="hud-rem">¡ª</span></div>
-  <div class="row"><span>Rumbo:</span><span id="hud-brg">¡ª</span></div>
-  <div class="row"><span>Velocidad:</span><span id="hud-spd">¡ª</span></div>
-  <div class="row"><span>Precisi¨®n:</span><span id="hud-acc">¡ª</span></div>
-  <div class="small">*Aviso al llegar (&lt; 50 m). Requiere GPS del m¨®vil.</div>
+  <h3>NavegaciÃ³n</h3>
+  <div class="row"><span>Destino:</span><span id="hud-dst">â€”</span></div>
+  <div class="row"><span>Restante:</span><span id="hud-rem">â€”</span></div>
+  <div class="row"><span>Rumbo:</span><span id="hud-brg">â€”</span></div>
+  <div class="row"><span>Velocidad:</span><span id="hud-spd">â€”</span></div>
+  <div class="row"><span>PrecisiÃ³n:</span><span id="hud-acc">â€”</span></div>
+  <div class="small">*Aviso al llegar (&lt; 50 m). Requiere GPS del mÃ³vil.</div>
   <div class="btns">
     <button id="btn-center">Centrar</button>
     <button id="btn-stop">Detener</button>
@@ -86,8 +86,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
-// === CONFIGURACI¨®N Y DATOS ===
-const COAST_REF = { name:"Salida Retamar (Encaje ¡Á Paseo Mar¨ªtimo)", lat:36.83039052497308, lon:-2.3125454988232668 };
+// === CONFIGURACIÃ³N Y DATOS ===
+const COAST_REF = { name:"Salida Retamar (Encaje Ã— Paseo MarÃ­timo)", lat:36.83039052497308, lon:-2.3125454988232668 };
 const ARRIVAL_RADIUS_M = 50, TWO_NM = 2*1852;
 
 const A = {lat:36.837000, lon:-2.348333};
@@ -117,27 +117,27 @@ const TRAMO_INF = [
 ];
 
 const KAYAK = [
-  { name:"K¡¤Centro¡¤1", type:"kayak", lat:36.831066, lon:-2.324209, depth_txt:"¡Ö12¨C15 m (carta)" },
-  { name:"K¡¤Centro¡¤2", type:"kayak", lat:36.826669, lon:-2.324467, depth_txt:"¡Ö14¨C17 m (carta)" },
-  { name:"K¡¤Centro¡¤3", type:"kayak", lat:36.822615, lon:-2.324724, depth_txt:"¡Ö16¨C19 m (carta)" },
-  { name:"K¡¤Centro¡¤4", type:"kayak", lat:36.817943, lon:-2.325153, depth_txt:"¡Ö18¨C20 m (carta)" }
+  { name:"KÂ·CentroÂ·1", type:"kayak", lat:36.831066, lon:-2.324209, depth_txt:"â‰ˆ12â€“15 m (carta)" },
+  { name:"KÂ·CentroÂ·2", type:"kayak", lat:36.826669, lon:-2.324467, depth_txt:"â‰ˆ14â€“17 m (carta)" },
+  { name:"KÂ·CentroÂ·3", type:"kayak", lat:36.822615, lon:-2.324724, depth_txt:"â‰ˆ16â€“19 m (carta)" },
+  { name:"KÂ·CentroÂ·4", type:"kayak", lat:36.817943, lon:-2.325153, depth_txt:"â‰ˆ18â€“20 m (carta)" }
 ];
 
 const BARCO = [
-  { name:"B¡¤E inicio", type:"barco", lat:36.819218, lon:-2.348247, depth_txt:"¡Ö27¨C30 m (carta)" },
-  { name:"B¡¤Inf¡¤1", type:"barco", lat:36.816500, lon:-2.338028, depth_txt:"¡Ö30¨C32 m (carta)" },
-  { name:"B¡¤Inf¡¤2", type:"barco", lat:36.813614, lon:-2.327042, depth_txt:"¡Ö32¨C34 m (carta)" },
-  { name:"B¡¤Inf¡¤3", type:"barco", lat:36.809491, lon:-2.317944, depth_txt:"¡Ö33¨C35 m (carta)" },
-  { name:"B¡¤C v¨¦rtice", type:"barco", lat:36.813500, lon:-2.289167, depth_txt:"¡Ö22¨C25 m (carta)" },
-  { name:"B¡¤Izq¡¤A1", type:"barco", lat:36.836000, lon:-2.348290, depth_txt:"¡Ö14¨C17 m (carta)" },
-  { name:"B¡¤Izq¡¤A2", type:"barco", lat:36.832263, lon:-2.348274, depth_txt:"¡Ö17¨C20 m (carta)" },
-  { name:"B¡¤Izq¡¤A3", type:"barco", lat:36.827691, lon:-2.348231, depth_txt:"¡Ö20¨C22 m (carta)" },
-  { name:"B¡¤Izq¡¤A4", type:"barco", lat:36.823749, lon:-2.348231, depth_txt:"¡Ö22¨C24 m (carta)" },
-  { name:"B¡¤Izq¡¤Esq", type:"barco", lat:36.819300, lon:-2.348269, depth_txt:"¡Ö27¨C30 m (carta)" },
-  { name:"B¡¤Der¡¤Esq", type:"barco", lat:36.804526, lon:-2.308760, depth_txt:"¡Ö33¨C35 m (carta)" },
-  { name:"B¡¤Der¡¤1", type:"barco", lat:36.806862, lon:-2.303245, depth_txt:"¡Ö31¨C33 m (carta)" },
-  { name:"B¡¤Der¡¤2", type:"barco", lat:36.810573, lon:-2.295628, depth_txt:"¡Ö27¨C30 m (carta)" },
-  { name:"B¡¤Der¡¤C", type:"barco", lat:36.813580, lon:-2.289662, depth_txt:"¡Ö22¨C25 m (carta)" }
+  { name:"BÂ·E inicio", type:"barco", lat:36.819218, lon:-2.348247, depth_txt:"â‰ˆ27â€“30 m (carta)" },
+  { name:"BÂ·InfÂ·1", type:"barco", lat:36.816500, lon:-2.338028, depth_txt:"â‰ˆ30â€“32 m (carta)" },
+  { name:"BÂ·InfÂ·2", type:"barco", lat:36.813614, lon:-2.327042, depth_txt:"â‰ˆ32â€“34 m (carta)" },
+  { name:"BÂ·InfÂ·3", type:"barco", lat:36.809491, lon:-2.317944, depth_txt:"â‰ˆ33â€“35 m (carta)" },
+  { name:"BÂ·C vÃ©rtice", type:"barco", lat:36.813500, lon:-2.289167, depth_txt:"â‰ˆ22â€“25 m (carta)" },
+  { name:"BÂ·IzqÂ·A1", type:"barco", lat:36.836000, lon:-2.348290, depth_txt:"â‰ˆ14â€“17 m (carta)" },
+  { name:"BÂ·IzqÂ·A2", type:"barco", lat:36.832263, lon:-2.348274, depth_txt:"â‰ˆ17â€“20 m (carta)" },
+  { name:"BÂ·IzqÂ·A3", type:"barco", lat:36.827691, lon:-2.348231, depth_txt:"â‰ˆ20â€“22 m (carta)" },
+  { name:"BÂ·IzqÂ·A4", type:"barco", lat:36.823749, lon:-2.348231, depth_txt:"â‰ˆ22â€“24 m (carta)" },
+  { name:"BÂ·IzqÂ·Esq", type:"barco", lat:36.819300, lon:-2.348269, depth_txt:"â‰ˆ27â€“30 m (carta)" },
+  { name:"BÂ·DerÂ·Esq", type:"barco", lat:36.804526, lon:-2.308760, depth_txt:"â‰ˆ33â€“35 m (carta)" },
+  { name:"BÂ·DerÂ·1", type:"barco", lat:36.806862, lon:-2.303245, depth_txt:"â‰ˆ31â€“33 m (carta)" },
+  { name:"BÂ·DerÂ·2", type:"barco", lat:36.810573, lon:-2.295628, depth_txt:"â‰ˆ27â€“30 m (carta)" },
+  { name:"BÂ·DerÂ·C", type:"barco", lat:36.813580, lon:-2.289662, depth_txt:"â‰ˆ22â€“25 m (carta)" }
 ];
 
 // === FUNCIONES AUXILIARES ===
@@ -145,8 +145,8 @@ const fmt = x => new Intl.NumberFormat("es-ES",{maximumFractionDigits:3}).format
 function dist(a,b){ return L.latLng(a.lat,a.lon).distanceTo(L.latLng(b.lat,b.lon)); }
 function distLabel(m){ return m<1000? `${Math.round(m)} m` : `${fmt(m/1000)} km`; }
 function bearingDeg(a,b){
-  const ¦Õ1=a.lat*Math.PI/180, ¦Õ2=b.lat*Math.PI/180, ¦¤¦Ë=(b.lon-a.lon)*Math.PI/180;
-  const y=Math.sin(¦¤¦Ë)*Math.cos(¦Õ2), x=Math.cos(¦Õ1)*Math.sin(¦Õ2)-Math.sin(¦Õ1)*Math.cos(¦Õ2)*Math.cos(¦¤¦Ë);
+  const Ï†1=a.lat*Math.PI/180, Ï†2=b.lat*Math.PI/180, Î”Î»=(b.lon-a.lon)*Math.PI/180;
+  const y=Math.sin(Î”Î»)*Math.cos(Ï†2), x=Math.cos(Ï†1)*Math.sin(Ï†2)-Math.sin(Ï†1)*Math.cos(Ï†2)*Math.cos(Î”Î»);
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 
@@ -160,7 +160,7 @@ function showStatus(msg, type = 'status') {
   }
 }
 
-// === FUNCI¨®N PARA FORZAR PERMISOS ===
+// === FUNCIÃ³N PARA FORZAR PERMISOS ===
 function requestLocationPermission() {
   const statusDiv = document.getElementById('permission-status');
   const button = document.getElementById('btn-request-permission');
@@ -194,21 +194,21 @@ function requestLocationPermission() {
             <div style="font-size:12px;margin-top:8px;">
               <strong>Para activar GPS:</strong><br/>
               1. Toca el <strong>?? candado</strong> en la barra de URL<br/>
-              2. Cambia "Ubicaci¨®n" a <strong>"Permitir"</strong><br/>
-              3. Recarga la p¨¢gina<br/><br/>
+              2. Cambia "UbicaciÃ³n" a <strong>"Permitir"</strong><br/>
+              3. Recarga la pÃ¡gina<br/><br/>
               <strong>O ve a:</strong><br/>
-              Chrome ¡ú Men¨² ¡ú Configuraci¨®n ¡ú Configuraci¨®n del sitio ¡ú Ubicaci¨®n ¡ú Permitir
+              Chrome â†’ MenÃº â†’ ConfiguraciÃ³n â†’ ConfiguraciÃ³n del sitio â†’ UbicaciÃ³n â†’ Permitir
             </div>
           `;
           break;
         case 2:
-          msg = '<div style="color:#ff6b6b;">? GPS no disponible. Activa la ubicaci¨®n en Android.</div>';
+          msg = '<div style="color:#ff6b6b;">? GPS no disponible. Activa la ubicaciÃ³n en Android.</div>';
           break;
         case 3:
-          msg = '<div style="color:#ffa726;">? Tiempo agotado. Reint¨¦ntalo.</div>';
+          msg = '<div style="color:#ffa726;">? Tiempo agotado. ReintÃ©ntalo.</div>';
           break;
         default:
-          msg = '<div style="color:#ff6b6b;">? Error desconocido. Reint¨¦ntalo.</div>';
+          msg = '<div style="color:#ff6b6b;">? Error desconocido. ReintÃ©ntalo.</div>';
       }
       statusDiv.innerHTML = msg;
     },
@@ -229,10 +229,10 @@ function checkInitialPermissions() {
   }
 }
 
-// === FUNCI¨®N PRINCIPAL ===
+// === FUNCIÃ³N PRINCIPAL ===
 function initializeApp() {
   if (typeof L === 'undefined') {
-    showStatus('? Error cargando Leaflet. Recarga la p¨¢gina.', 'error');
+    showStatus('? Error cargando Leaflet. Recarga la pÃ¡gina.', 'error');
     return;
   }
 
@@ -276,10 +276,10 @@ function initializeApp() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-        showStatus(`? GPS OK: ${lat.toFixed(6)}, ${lon.toFixed(6)} (¡À${Math.round(accuracy)}m)`, 'success');
+        showStatus(`? GPS OK: ${lat.toFixed(6)}, ${lon.toFixed(6)} (Â±${Math.round(accuracy)}m)`, 'success');
         youLayer.clearLayers();
         const marker = L.circleMarker([lat, lon], {radius: 8, color: '#10b981', fillColor: '#10b981', fillOpacity: 0.8})
-          .bindPopup(`Tu posici¨®n actual<br/>Precisi¨®n: ¡À${Math.round(accuracy)}m`).addTo(youLayer);
+          .bindPopup(`Tu posiciÃ³n actual<br/>PrecisiÃ³n: Â±${Math.round(accuracy)}m`).addTo(youLayer);
         map.setView([lat, lon], 15);
         marker.openPopup();
       },
@@ -287,11 +287,11 @@ function initializeApp() {
         let msg = '? Error GPS: ';
         switch(error.code) {
           case 1: msg += 'Permisos denegados'; break;
-          case 2: msg += 'Posici¨®n no disponible'; break;
+          case 2: msg += 'PosiciÃ³n no disponible'; break;
           case 3: msg += 'Tiempo de espera agotado'; break;
           default: msg += 'Error desconocido';
         }
-        showStatus(msg + '. Revisa permisos de ubicaci¨®n.', 'error');
+        showStatus(msg + '. Revisa permisos de ubicaciÃ³n.', 'error');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -306,7 +306,7 @@ function initializeApp() {
     hud.style.display = 'block';
     hudDst.textContent = dest.name;
     hudRem.textContent = 'Conectando GPS...';
-    showStatus('?? Iniciando navegaci¨®n GPS...', 'warning');
+    showStatus('?? Iniciando navegaciÃ³n GPS...', 'warning');
 
     navWatchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -314,15 +314,15 @@ function initializeApp() {
         currentPosition = { lat, lon };
         youLayer.clearLayers();
         youMarker = L.circleMarker([lat, lon], {radius: 6, color: '#ffb703', fillColor: '#ffb703', fillOpacity: 1})
-          .bindPopup(`Tu posici¨®n<br/>Precisi¨®n: ¡À${Math.round(accuracy)}m`).addTo(youLayer);
+          .bindPopup(`Tu posiciÃ³n<br/>PrecisiÃ³n: Â±${Math.round(accuracy)}m`).addTo(youLayer);
         
         const d = dist({ lat, lon }, { lat: dest.lat, lon: dest.lon });
         const brg = bearingDeg({ lat, lon }, { lat: dest.lat, lon: dest.lon });
         
         hudRem.textContent = distLabel(d);
-        hudBrg.textContent = `${Math.round(brg)}¡ã`;
-        hudAcc.textContent = `¡À${Math.round(accuracy)}m`;
-        hudSpd.textContent = (typeof speed === 'number' && speed !== null) ? `${(speed * 1.94384).toFixed(1)} kn` : '¡ª';
+        hudBrg.textContent = `${Math.round(brg)}Â°`;
+        hudAcc.textContent = `Â±${Math.round(accuracy)}m`;
+        hudSpd.textContent = (typeof speed === 'number' && speed !== null) ? `${(speed * 1.94384).toFixed(1)} kn` : 'â€”';
         
         if (d <= ARRIVAL_RADIUS_M) {
           showStatus('?? ?Llegaste a la marca!', 'success');
@@ -331,7 +331,7 @@ function initializeApp() {
       },
       (error) => {
         switch(error.code) {
-          case 1: showStatus('?? Necesitas dar permisos de ubicaci¨®n para navegar', 'error'); break;
+          case 1: showStatus('?? Necesitas dar permisos de ubicaciÃ³n para navegar', 'error'); break;
           case 2: hudRem.textContent = 'Sin se?al GPS'; break;
           case 3: hudRem.textContent = 'GPS sin respuesta'; break;
           default: hudRem.textContent = 'Error GPS';
@@ -351,18 +351,18 @@ function initializeApp() {
     routeLayer.clearLayers();
     currentPosition = null;
     youMarker = null;
-    showStatus('Navegaci¨®n detenida', 'status');
+    showStatus('NavegaciÃ³n detenida', 'status');
   }
 
   function addPoint(p, layer, icon) {
     const d0 = dist(COAST_REF, p);
     const b0 = bearingDeg(COAST_REF, p);
     const html = `
-      <b>${p.name}</b> ¡ª <small>${p.type.toUpperCase()}</small><br><br>
+      <b>${p.name}</b> â€” <small>${p.type.toUpperCase()}</small><br><br>
       <b>Coordenadas:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>
-      <b>Desde salida:</b> ${distLabel(d0)} ¡¤ <b>Rumbo</b> ${Math.round(b0)}¡ã<br>
-      ${p.depth_txt ? `<b>Profundidad ¡Ö (carta):</b> ${p.depth_txt}<br>` : ''}
-      <br><button id="go-${p.name.replace(/[^a-z0-9]/gi, '_')}" style="cursor:pointer;padding:6px 10px;border:1px solid #223155;border-radius:8px;background:#18233a;color:#eaf3ff">?? Navegar aqu¨ª</button>
+      <b>Desde salida:</b> ${distLabel(d0)} Â· <b>Rumbo</b> ${Math.round(b0)}Â°<br>
+      ${p.depth_txt ? `<b>Profundidad â‰ˆ (carta):</b> ${p.depth_txt}<br>` : ''}
+      <br><button id="go-${p.name.replace(/[^a-z0-9]/gi, '_')}" style="cursor:pointer;padding:6px 10px;border:1px solid #223155;border-radius:8px;background:#18233a;color:#eaf3ff">?? Navegar aquÃ­</button>
     `;
     const m = L.marker([p.lat, p.lon], { icon }).bindPopup(html);
     m.on('popupopen', () => {
@@ -405,7 +405,7 @@ function initializeApp() {
   document.getElementById('btn-ambas').click();
 }
 
-// === INICIALIZACI¨®N ===
+// === INICIALIZACIÃ³N ===
 if (typeof L !== 'undefined') {
   checkInitialPermissions();
 } else {
@@ -417,7 +417,7 @@ if (typeof L !== 'undefined') {
       checkInitialPermissions();
     } else if (attempts > 20) {
       clearInterval(checkLeaflet);
-      document.getElementById('permission-status').innerHTML = '<div style="color:#ff6b6b;">? Error cargando el mapa. Comprueba tu conexi¨®n.</div>';
+      document.getElementById('permission-status').innerHTML = '<div style="color:#ff6b6b;">? Error cargando el mapa. Comprueba tu conexiÃ³n.</div>';
     }
   }, 100);
 }
