@@ -27,9 +27,11 @@
   .error{background:#7f1d1d;color:#fecaca}
   .success{background:#166534;color:#bbf7d0}
   .warning{background:#92400e;color:#fed7aa}
-  .compass {position:fixed; left:10px; top:10px; z-index:1000; background:#0b1220cc; border:1px solid #223155; border-radius:50%; width:100px; height:100px; display:none}
-  .compass-needle {position:absolute; top:50%; left:50%; width:2px; height:40px; background:#ff0000; transform-origin:bottom; margin-left:-1px; margin-top:-40px; transition:transform 0.3s}
-  .compass-text {position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:12px; font-weight:bold}
+  .compass {position:fixed; left:10px; top:10px; z-index:1000; background:#0b1220ee; border:2px solid #4cc9f0; border-radius:50%; width:120px; height:120px; display:none}
+  .compass-face {position:relative; width:100%; height:100%; border-radius:50%}
+  .compass-needle {position:absolute; top:10px; left:50%; width:3px; height:50px; background:linear-gradient(to bottom, #ff0000 0%, #ff0000 70%, #ffffff 70%, #ffffff 100%); transform-origin:bottom center; margin-left:-1.5px; border-radius:2px; transition:transform 0.5s ease}
+  .compass-text {position:absolute; top:8px; left:50%; transform:translateX(-50%); color:#4cc9f0; font-size:14px; font-weight:bold}
+  .compass-degrees {position:absolute; bottom:8px; left:50%; transform:translateX(-50%); color:#fff; font-size:11px}
 </style>
 </head>
 <body>
@@ -71,8 +73,11 @@
 
 <!-- Brújula -->
 <div id="compass" class="compass">
-  <div id="compass-needle" class="compass-needle"></div>
-  <div class="compass-text">N</div>
+  <div class="compass-face">
+    <div id="compass-needle" class="compass-needle"></div>
+    <div class="compass-text">N</div>
+    <div id="compass-degrees" class="compass-degrees">---°</div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -151,7 +156,7 @@ function showStatus(msg, type = 'status') {
   }
 }
 
-// === FUNCIÓN PRINCIPAL - SIN SOLICITUD DE PERMISOS ===
+// === FUNCIÓN PRINCIPAL ===
 function initializeApp() {
   if (typeof L === 'undefined') {
     showStatus('❌ Error cargando Leaflet. Recarga la página.', 'error');
@@ -188,8 +193,22 @@ function initializeApp() {
   const hudBrg = document.getElementById('hud-brg');
   const hudSpd = document.getElementById('hud-spd');
   const hudAcc = document.getElementById('hud-acc');
-  const compass = document.getElementById('compass');
-  const compassNeedle = document.getElementById('compass-needle');
+
+  function updateCompass(bearing) {
+    const compass = document.getElementById('compass');
+    const compassNeedle = document.getElementById('compass-needle');
+    const compassDegrees = document.getElementById('compass-degrees');
+    
+    if (bearing !== null && bearing !== undefined && !isNaN(bearing)) {
+      compass.style.display = 'block';
+      compassNeedle.style.transform = `rotate(${bearing}deg)`;
+      compassDegrees.textContent = `${Math.round(bearing)}°`;
+      console.log(`Brújula actualizada: ${Math.round(bearing)}°`);
+    } else {
+      compass.style.display = 'none';
+      console.log('Brújula oculta - bearing inválido:', bearing);
+    }
+  }
 
   function testGPS() {
     showStatus('🔍 Verificando GPS...', 'warning');
@@ -221,15 +240,6 @@ function initializeApp() {
     );
   }
 
-  function updateCompass(bearing) {
-    if (bearing !== null && bearing !== undefined) {
-      compassNeedle.style.transform = `rotate(${bearing}deg)`;
-      compass.style.display = 'block';
-    } else {
-      compass.style.display = 'none';
-    }
-  }
-
   function startNavigation(dest) {
     stopNavigation();
     if (!('geolocation' in navigator)) {
@@ -242,7 +252,6 @@ function initializeApp() {
     hudRem.textContent = 'Conectando GPS...';
     showStatus('🧭 Iniciando navegación GPS...', 'warning');
 
-    // Mostrar línea de ruta INMEDIATAMENTE
     routeLayer.clearLayers();
     routeLine = L.polyline([
       [COAST_REF.lat, COAST_REF.lon],
@@ -254,7 +263,6 @@ function initializeApp() {
       opacity: 0.8
     }).addTo(routeLayer);
     
-    // Ajustar vista para mostrar toda la ruta
     map.fitBounds(routeLine.getBounds().pad(0.1));
 
     navWatchId = navigator.geolocation.watchPosition(
@@ -262,7 +270,6 @@ function initializeApp() {
         const { latitude: lat, longitude: lon, speed, accuracy } = pos.coords;
         currentPosition = { lat, lon };
         
-        // Actualizar marcador de posición
         youLayer.clearLayers();
         youMarker = L.circleMarker([lat, lon], {
           radius: 8,
@@ -272,7 +279,6 @@ function initializeApp() {
           weight: 2
         }).bindPopup(`Tu posición<br/>Precisión: ±${Math.round(accuracy)}m`).addTo(youLayer);
 
-        // Actualizar línea de ruta desde tu posición actual
         routeLayer.clearLayers();
         routeLine = L.polyline([
           [lat, lon],
@@ -284,27 +290,22 @@ function initializeApp() {
           opacity: 0.8
         }).addTo(routeLayer);
         
-        // Calcular distancia y rumbo
         const d = dist({ lat, lon }, { lat: dest.lat, lon: dest.lon });
         const brg = bearingDeg({ lat, lon }, { lat: dest.lat, lon: dest.lon });
         
-        // Actualizar HUD
         hudRem.textContent = distLabel(d);
         hudBrg.textContent = `${Math.round(brg)}°`;
         hudAcc.textContent = `±${Math.round(accuracy)}m`;
         
-        // CORREGIR: Convertir nudos a km/h
         if (typeof speed === 'number' && speed !== null && speed > 0) {
-          const speedKmh = speed * 3.6; // m/s a km/h
+          const speedKmh = speed * 3.6;
           hudSpd.textContent = `${speedKmh.toFixed(1)} km/h`;
         } else {
           hudSpd.textContent = '0.0 km/h';
         }
         
-        // Actualizar brújula
         updateCompass(brg);
         
-        // Verificar llegada
         if (d <= ARRIVAL_RADIUS_M) {
           showStatus('🎯 ¡Llegaste a la marca!', 'success');
           if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
@@ -328,7 +329,7 @@ function initializeApp() {
       navWatchId = null;
     }
     hud.style.display = 'none';
-    compass.style.display = 'none';
+    document.getElementById('compass').style.display = 'none';
     youLayer.clearLayers();
     routeLayer.clearLayers();
     currentPosition = null;
