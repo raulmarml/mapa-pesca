@@ -27,11 +27,13 @@
   .error{background:#7f1d1d;color:#fecaca}
   .success{background:#166534;color:#bbf7d0}
   .warning{background:#92400e;color:#fed7aa}
-  .compass {position:fixed; left:10px; top:10px; z-index:1000; background:#0b1220ee; border:3px solid #4cc9f0; border-radius:50%; width:120px; height:120px; display:none}
+  .compass {position:fixed; left:10px; top:10px; z-index:1000; background:radial-gradient(circle, #1a2332 0%, #0b1220 100%); border:3px solid #4cc9f0; border-radius:50%; width:130px; height:130px; display:none; box-shadow:0 0 20px rgba(76,201,240,0.3)}
   .compass-face {position:relative; width:100%; height:100%; border-radius:50%}
-  .compass-needle {position:absolute; top:15px; left:50%; width:3px; height:50px; background:linear-gradient(to bottom, #ff0000 0%, #ff0000 70%, #ffffff 70%, #ffffff 100%); transform-origin:bottom center; margin-left:-1.5px; border-radius:2px; transition:transform 0.3s ease}
-  .compass-text {position:absolute; top:8px; left:50%; transform:translateX(-50%); color:#4cc9f0; font-size:14px; font-weight:bold}
-  .compass-degrees {position:absolute; bottom:8px; left:50%; transform:translateX(-50%); color:#fff; font-size:11px}
+  .compass-arrow {position:absolute; top:20px; left:50%; width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:50px solid #ff0000; transform-origin:bottom center; margin-left:-8px; transition:all 0.3s ease; filter:drop-shadow(0 0 3px rgba(255,0,0,0.8))}
+  .compass-arrow.on-target {border-bottom-color:#00ff00; filter:drop-shadow(0 0 5px rgba(0,255,0,0.8))}
+  .compass-degrees {position:absolute; bottom:15px; left:50%; transform:translateX(-50%); color:#fff; font-size:12px; font-weight:bold; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:10px}
+  .compass-status {position:absolute; bottom:-2px; left:50%; transform:translateX(-50%); color:#9fb0d0; font-size:10px; white-space:nowrap}
+  .compass-direction {position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#4cc9f0; font-size:11px; font-weight:bold}
 </style>
 </head>
 <body>
@@ -51,7 +53,7 @@
     <div class="legend">
       <b>Salida:</b> 36.83039052497308, -2.3125454988232668 (Camino del Encaje × Paseo Marítimo).<br/>
       Naranja = polígono A–B–C–D–E (oficial). Amarillo = barreras "W/E" con tus vértices. Profundidad ≈ por carta; valida con ecosonda.<br/>
-      <b>✅ GPS listo:</b> Navega a las marcas de pesca.
+      <b>✅ GPS listo:</b> Navega a las marcas de pesca. <b>Brújula:</b> Flecha roja → gira móvil. Flecha verde → dirección correcta.
     </div>
   </div>
 </div>
@@ -71,13 +73,14 @@
   </div>
 </div>
 
-<!-- Brújula -->
+<!-- Brújula de Navegación -->
 <div id="compass" class="compass">
   <div class="compass-face">
-    <div id="compass-needle" class="compass-needle"></div>
-    <div class="compass-text">N</div>
+    <div id="compass-arrow" class="compass-arrow"></div>
     <div id="compass-degrees" class="compass-degrees">---°</div>
+    <div id="compass-direction" class="compass-direction">DESTINO</div>
   </div>
+  <div id="compass-status" class="compass-status">Brújula activa</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -100,7 +103,7 @@ const PALO_IZQ = [
 const PALO_CEN = [
   {lat:36.831066, lon:-2.324209}, {lat:36.826669, lon:-2.324467},
   {lat:36.822615, lon:-2.324724}, {lat:36.817943, lon:-2.325153},
-  {lat:36.813614, lon:-2.325497}
+  {lat:36.613614, lon:-2.325497}
 ];
 const PALO_DCH = [
   {lat:36.813580, lon:-2.289662}, {lat:36.810573, lon:-2.295628},
@@ -195,11 +198,12 @@ function initializeApp() {
   const hudSpd = document.getElementById('hud-spd');
   const hudAcc = document.getElementById('hud-acc');
 
-  // === BRÚJULA MEJORADA ===
+  // === BRÚJULA DE NAVEGACIÓN CLARA ===
   function updateCompass(targetBearing) {
     const compass = document.getElementById('compass');
-    const compassNeedle = document.getElementById('compass-needle');
+    const compassArrow = document.getElementById('compass-arrow');
     const compassDegrees = document.getElementById('compass-degrees');
+    const compassStatus = document.getElementById('compass-status');
     
     if (targetBearing !== null && targetBearing !== undefined && !isNaN(targetBearing)) {
       compass.style.display = 'block';
@@ -212,27 +216,34 @@ function initializeApp() {
           DeviceOrientationEvent.requestPermission()
             .then(response => {
               if (response === 'granted') {
-                setupCompassWithOrientation();
+                setupDynamicCompass();
+                compassStatus.textContent = 'Girando dinámicamente';
               } else {
-                setupStaticCompass(targetBearing);
+                setupFixedCompass(targetBearing);
+                compassStatus.textContent = 'Apunta hacia destino';
               }
             })
-            .catch(() => setupStaticCompass(targetBearing));
+            .catch(() => {
+              setupFixedCompass(targetBearing);
+              compassStatus.textContent = 'Apunta hacia destino';
+            });
         } else {
-          setupCompassWithOrientation();
+          setupDynamicCompass();
+          compassStatus.textContent = 'Girando dinámicamente';
         }
       } else {
-        setupStaticCompass(targetBearing);
+        setupFixedCompass(targetBearing);
+        compassStatus.textContent = 'Apunta hacia destino';
       }
       
-      console.log(`Brújula - Rumbo objetivo: ${Math.round(targetBearing)}°`);
+      console.log(`Brújula - Rumbo al destino: ${Math.round(targetBearing)}°`);
     } else {
       compass.style.display = 'none';
       currentTargetBearing = null;
     }
   }
 
-  function setupCompassWithOrientation() {
+  function setupDynamicCompass() {
     if (orientationListener) {
       window.removeEventListener('deviceorientationabsolute', orientationListener);
       window.removeEventListener('deviceorientation', orientationListener);
@@ -250,10 +261,26 @@ function initializeApp() {
       }
       
       if (deviceHeading !== null) {
+        // Calcular hacia dónde debe apuntar la flecha
         const relativeBearing = (currentTargetBearing - deviceHeading + 360) % 360;
-        const compassNeedle = document.getElementById('compass-needle');
-        compassNeedle.style.transform = `rotate(${relativeBearing}deg)`;
-        console.log(`Dispositivo: ${Math.round(deviceHeading)}°, Objetivo: ${Math.round(currentTargetBearing)}°, Aguja: ${Math.round(relativeBearing)}°`);
+        const compassArrow = document.getElementById('compass-arrow');
+        
+        // Rotar la flecha
+        compassArrow.style.transform = `rotate(${relativeBearing}deg)`;
+        
+        // Cambiar color cuando apuntas en la dirección correcta (margen de ±15°)
+        const tolerance = 15;
+        const isOnTarget = Math.abs(relativeBearing) <= tolerance || Math.abs(relativeBearing - 360) <= tolerance;
+        
+        if (isOnTarget) {
+          compassArrow.classList.add('on-target');
+          document.getElementById('compass-status').textContent = '✅ DIRECCIÓN CORRECTA';
+        } else {
+          compassArrow.classList.remove('on-target');
+          document.getElementById('compass-status').textContent = 'Gira hacia la flecha';
+        }
+        
+        console.log(`Móvil: ${Math.round(deviceHeading)}°, Destino: ${Math.round(currentTargetBearing)}°, Flecha: ${Math.round(relativeBearing)}°, OnTarget: ${isOnTarget}`);
       }
     };
     
@@ -264,10 +291,12 @@ function initializeApp() {
     }
   }
   
-  function setupStaticCompass(targetBearing) {
-    const compassNeedle = document.getElementById('compass-needle');
-    compassNeedle.style.transform = `rotate(${targetBearing}deg)`;
-    console.log(`Brújula estática - Rumbo: ${Math.round(targetBearing)}°`);
+  function setupFixedCompass(targetBearing) {
+    // Flecha fija que siempre apunta al destino (hacia arriba)
+    const compassArrow = document.getElementById('compass-arrow');
+    compassArrow.style.transform = 'rotate(0deg)';
+    compassArrow.classList.remove('on-target');
+    console.log(`Brújula fija - Flecha apunta al destino: ${Math.round(targetBearing)}°`);
   }
 
   function testGPS() {
@@ -473,3 +502,5 @@ if (typeof L !== 'undefined') {
 </script>
 </body>
 </html>
+
+  
