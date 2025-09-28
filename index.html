@@ -27,11 +27,12 @@
   .error{background:#7f1d1d;color:#fecaca}
   .success{background:#166534;color:#bbf7d0}
   .warning{background:#92400e;color:#fed7aa}
-  .compass {position:fixed; left:10px; top:10px; z-index:1000; background:#0b1220ee; border:2px solid #4cc9f0; border-radius:50%; width:120px; height:120px; display:none}
+  .compass {position:fixed; left:10px; top:10px; z-index:1000; background:radial-gradient(circle, #1a2332 0%, #0b1220 100%); border:3px solid #4cc9f0; border-radius:50%; width:130px; height:130px; display:none; box-shadow:0 0 20px rgba(76,201,240,0.3)}
   .compass-face {position:relative; width:100%; height:100%; border-radius:50%}
-  .compass-needle {position:absolute; top:10px; left:50%; width:3px; height:50px; background:linear-gradient(to bottom, #ff0000 0%, #ff0000 70%, #ffffff 70%, #ffffff 100%); transform-origin:bottom center; margin-left:-1.5px; border-radius:2px; transition:transform 0.5s ease}
-  .compass-text {position:absolute; top:8px; left:50%; transform:translateX(-50%); color:#4cc9f0; font-size:14px; font-weight:bold}
-  .compass-degrees {position:absolute; bottom:8px; left:50%; transform:translateX(-50%); color:#fff; font-size:11px}
+  .compass-needle {position:absolute; top:15px; left:50%; width:4px; height:55px; background:linear-gradient(to bottom, #ff0000 0%, #ff0000 60%, #ffffff 60%, #ffffff 100%); transform-origin:bottom center; margin-left:-2px; border-radius:3px; transition:transform 0.3s ease; box-shadow:0 0 5px rgba(255,0,0,0.5)}
+  .compass-text {position:absolute; top:10px; left:50%; transform:translateX(-50%); color:#4cc9f0; font-size:16px; font-weight:bold; text-shadow:0 0 5px rgba(76,201,240,0.8)}
+  .compass-degrees {position:absolute; bottom:10px; left:50%; transform:translateX(-50%); color:#fff; font-size:12px; font-weight:bold}
+  .compass-status {position:absolute; bottom:-5px; left:50%; transform:translateX(-50%); color:#9fb0d0; font-size:10px; white-space:nowrap}
 </style>
 </head>
 <body>
@@ -51,7 +52,7 @@
     <div class="legend">
       <b>Salida:</b> 36.83039052497308, -2.3125454988232668 (Camino del Encaje × Paseo Marítimo).<br/>
       Naranja = polígono A–B–C–D–E (oficial). Amarillo = barreras "W/E" con tus vértices. Profundidad ≈ por carta; valida con ecosonda.<br/>
-      <b>✅ GPS listo:</b> Navega a las marcas de pesca.
+      <b>✅ GPS listo:</b> Navega a las marcas de pesca. <b>Brújula dinámica:</b> La aguja siempre apunta al destino.
     </div>
   </div>
 </div>
@@ -64,20 +65,21 @@
   <div class="row"><span>Rumbo:</span><span id="hud-brg">—</span></div>
   <div class="row"><span>Velocidad:</span><span id="hud-spd">—</span></div>
   <div class="row"><span>Precisión:</span><span id="hud-acc">—</span></div>
-  <div class="small">*Aviso al llegar (&lt; 50 m). Línea de puntos = ruta a seguir.</div>
+  <div class="small">*Aviso al llegar (&lt; 50 m). Línea verde = ruta a seguir.</div>
   <div class="btns">
     <button id="btn-center">Centrar</button>
     <button id="btn-stop">Detener</button>
   </div>
 </div>
 
-<!-- Brújula -->
+<!-- Brújula Dinámica -->
 <div id="compass" class="compass">
   <div class="compass-face">
     <div id="compass-needle" class="compass-needle"></div>
     <div class="compass-text">N</div>
     <div id="compass-degrees" class="compass-degrees">---°</div>
   </div>
+  <div id="compass-status" class="compass-status">Brújula activa</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -187,6 +189,7 @@ function initializeApp() {
   const barcoIcon = L.divIcon({ html:`<div style="background:#4cc9f0;border:2px solid #1b6c3f;color:#013b49;padding:3px 6px;border-radius:6px;font-size:12px">🚤 Barco</div>` });
 
   let navWatchId = null, youMarker = null, currentPosition = null, routeLine = null;
+  let orientationListener = null, currentTargetBearing = null;
   const hud = document.getElementById('hud');
   const hudDst = document.getElementById('hud-dst');
   const hudRem = document.getElementById('hud-rem');
@@ -194,20 +197,97 @@ function initializeApp() {
   const hudSpd = document.getElementById('hud-spd');
   const hudAcc = document.getElementById('hud-acc');
 
-  function updateCompass(bearing) {
+  // === BRÚJULA DINÁMICA ===
+  function updateCompass(targetBearing) {
     const compass = document.getElementById('compass');
-    const compassNeedle = document.getElementById('compass-needle');
     const compassDegrees = document.getElementById('compass-degrees');
+    const compassStatus = document.getElementById('compass-status');
     
-    if (bearing !== null && bearing !== undefined && !isNaN(bearing)) {
+    if (targetBearing !== null && targetBearing !== undefined && !isNaN(targetBearing)) {
       compass.style.display = 'block';
-      compassNeedle.style.transform = `rotate(${bearing}deg)`;
-      compassDegrees.textContent = `${Math.round(bearing)}°`;
-      console.log(`Brújula actualizada: ${Math.round(bearing)}°`);
+      currentTargetBearing = targetBearing;
+      compassDegrees.textContent = `${Math.round(targetBearing)}°`;
+      
+      // Detectar si el dispositivo soporta orientación
+      if ('DeviceOrientationEvent' in window) {
+        // Para iOS 13+ necesitamos pedir permisos
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          DeviceOrientationEvent.requestPermission()
+            .then(response => {
+              if (response === 'granted') {
+                setupCompassWithOrientation();
+                compassStatus.textContent = 'Brújula dinámica';
+              } else {
+                setupStaticCompass(targetBearing);
+                compassStatus.textContent = 'Brújula fija';
+              }
+            })
+            .catch(() => {
+              setupStaticCompass(targetBearing);
+              compassStatus.textContent = 'Brújula fija';
+            });
+        } else {
+          // Android o navegadores que no requieren permisos
+          setupCompassWithOrientation();
+          compassStatus.textContent = 'Brújula dinámica';
+        }
+      } else {
+        setupStaticCompass(targetBearing);
+        compassStatus.textContent = 'Brújula fija';
+      }
+      
+      console.log(`Brújula inicializada - Rumbo objetivo: ${Math.round(targetBearing)}°`);
     } else {
       compass.style.display = 'none';
-      console.log('Brújula oculta - bearing inválido:', bearing);
+      currentTargetBearing = null;
     }
+  }
+
+  function setupCompassWithOrientation() {
+    // Limpiar listener anterior
+    if (orientationListener) {
+      window.removeEventListener('deviceorientationabsolute', orientationListener);
+      window.removeEventListener('deviceorientation', orientationListener);
+    }
+    
+    orientationListener = function(event) {
+      if (currentTargetBearing === null) return;
+      
+      let deviceHeading = null;
+      
+      if (event.webkitCompassHeading !== undefined) {
+        // iOS - usa magnetómetro calibrado
+        deviceHeading = event.webkitCompassHeading;
+      } else if (event.alpha !== null) {
+        // Android - convierte alpha a rumbo magnético
+        deviceHeading = 360 - event.alpha;
+      }
+      
+      if (deviceHeading !== null) {
+        // Calcular rumbo relativo: hacia dónde debe apuntar la aguja
+        const relativeBearing = (currentTargetBearing - deviceHeading + 360) % 360;
+        
+        const compassNeedle = document.getElementById('compass-needle');
+        compassNeedle.style.transform = `rotate(${relativeBearing}deg)`;
+        
+        // Debug en consola
+        console.log(`Dispositivo: ${Math.round(deviceHeading)}°, Objetivo: ${Math.round(currentTargetBearing)}°, Aguja: ${Math.round(relativeBearing)}°`);
+      }
+    };
+    
+    // Usar orientación absoluta si está disponible (más precisa)
+    if ('ondeviceorientationabsolute' in window) {
+      window.addEventListener('deviceorientationabsolute', orientationListener);
+    } else {
+      window.addEventListener('deviceorientation', orientationListener);
+    }
+  }
+  
+  function setupStaticCompass(targetBearing) {
+    // Brújula fija que siempre apunta al rumbo del destino
+    const compassNeedle = document.getElementById('compass-needle');
+    compassNeedle.style.transform = `rotate(${targetBearing}deg)`;
+    console.log(`Brújula estática - Rumbo fijo: ${Math.round(targetBearing)}°`);
   }
 
   function testGPS() {
@@ -252,6 +332,7 @@ function initializeApp() {
     hudRem.textContent = 'Conectando GPS...';
     showStatus('🧭 Iniciando navegación GPS...', 'warning');
 
+    // Mostrar línea de ruta inicial
     routeLayer.clearLayers();
     routeLine = L.polyline([
       [COAST_REF.lat, COAST_REF.lon],
@@ -270,6 +351,7 @@ function initializeApp() {
         const { latitude: lat, longitude: lon, speed, accuracy } = pos.coords;
         currentPosition = { lat, lon };
         
+        // Actualizar marcador de posición
         youLayer.clearLayers();
         youMarker = L.circleMarker([lat, lon], {
           radius: 8,
@@ -279,6 +361,7 @@ function initializeApp() {
           weight: 2
         }).bindPopup(`Tu posición<br/>Precisión: ±${Math.round(accuracy)}m`).addTo(youLayer);
 
+        // Actualizar línea de ruta desde posición actual
         routeLayer.clearLayers();
         routeLine = L.polyline([
           [lat, lon],
@@ -290,13 +373,16 @@ function initializeApp() {
           opacity: 0.8
         }).addTo(routeLayer);
         
+        // Calcular distancia y rumbo
         const d = dist({ lat, lon }, { lat: dest.lat, lon: dest.lon });
         const brg = bearingDeg({ lat, lon }, { lat: dest.lat, lon: dest.lon });
         
+        // Actualizar HUD
         hudRem.textContent = distLabel(d);
         hudBrg.textContent = `${Math.round(brg)}°`;
         hudAcc.textContent = `±${Math.round(accuracy)}m`;
         
+        // Velocidad en km/h
         if (typeof speed === 'number' && speed !== null && speed > 0) {
           const speedKmh = speed * 3.6;
           hudSpd.textContent = `${speedKmh.toFixed(1)} km/h`;
@@ -304,8 +390,10 @@ function initializeApp() {
           hudSpd.textContent = '0.0 km/h';
         }
         
+        // Actualizar brújula con nuevo rumbo
         updateCompass(brg);
         
+        // Verificar llegada
         if (d <= ARRIVAL_RADIUS_M) {
           showStatus('🎯 ¡Llegaste a la marca!', 'success');
           if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
@@ -328,6 +416,14 @@ function initializeApp() {
       navigator.geolocation.clearWatch(navWatchId);
       navWatchId = null;
     }
+    
+    // Limpiar listener de orientación
+    if (orientationListener) {
+      window.removeEventListener('deviceorientationabsolute', orientationListener);
+      window.removeEventListener('deviceorientation', orientationListener);
+      orientationListener = null;
+    }
+    
     hud.style.display = 'none';
     document.getElementById('compass').style.display = 'none';
     youLayer.clearLayers();
@@ -335,6 +431,7 @@ function initializeApp() {
     currentPosition = null;
     youMarker = null;
     routeLine = null;
+    currentTargetBearing = null;
     showStatus('Navegación detenida', 'status');
   }
 
@@ -367,41 +464,3 @@ function initializeApp() {
     const layers = [L.layerGroup([overlays])];
     if (showK) layers.push(kayakLayer);
     if (showB) layers.push(barcoLayer);
-    try { map.fitBounds(L.featureGroup(layers).getBounds().pad(0.2)); } catch(e) {}
-  }
-
-  document.getElementById('btn-kayak').onclick = () => { stopNavigation(); map.removeLayer(barcoLayer); map.addLayer(kayakLayer); fitVisible(true,false); };
-  document.getElementById('btn-barco').onclick = () => { stopNavigation(); map.removeLayer(kayakLayer); map.addLayer(barcoLayer); fitVisible(false,true); };
-  document.getElementById('btn-ambas').onclick = () => { stopNavigation(); map.addLayer(kayakLayer); map.addLayer(barcoLayer); fitVisible(true,true); };
-  document.getElementById('btn-test-gps').onclick = testGPS;
-  document.getElementById('btn-center').onclick = () => { if (currentPosition) map.setView([currentPosition.lat, currentPosition.lon], 15); else if (youMarker) map.panTo(youMarker.getLatLng()); };
-  document.getElementById('btn-stop').onclick = stopNavigation;
-
-  let overVisible = true;
-  document.getElementById('btn-over').onclick = () => {
-    overVisible = !overVisible;
-    if (overVisible) overlays.addTo(map); else map.removeLayer(overlays);
-  };
-
-  document.getElementById('btn-ambas').click();
-}
-
-// === INICIALIZACIÓN DIRECTA ===
-if (typeof L !== 'undefined') {
-  initializeApp();
-} else {
-  let attempts = 0;
-  const checkLeaflet = setInterval(() => {
-    attempts++;
-    if (typeof L !== 'undefined') {
-      clearInterval(checkLeaflet);
-      initializeApp();
-    } else if (attempts > 20) {
-      clearInterval(checkLeaflet);
-      showStatus('❌ Error cargando el mapa. Comprueba tu conexión.', 'error');
-    }
-  }, 100);
-}
-</script>
-</body>
-</html>
